@@ -1,0 +1,205 @@
+---
+title: "More Mapping Presentation"
+author: "Jenna Moscaritolo & Jung Hwa Yeom"
+date: "11/11/2020"
+output:
+  revealjs::revealjs_presentation:
+    self_contained: false
+    reveal_options:
+      slideNumber: true
+      previewLinks: false
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+## Introduction
+
+'hurricaneexposuredata' package
+
+- Rain data
+- Wind data
+- Latitude & longitude
+
+
+## Goal
+
+To compare amount of rainfall of three consecutive hurricanes and their storm tracks.
+
+
+## Plan
+
+Because we wanted three hurricanes, we decided to take one for each year in 2009-2011.
+
+- Step 1: Choosing the three hurricanes
+- Step 2: Cleaning the data
+- Step 3: Connecting the coordinates with the other data
+- Step 4: Mapping the data
+
+
+## Filtering Target Rain Data
+
+After doing the initial extraction of the data, we filtered the data to have the rain data link with our desired hurricanes.
+
+```{r, echo = FALSE}
+pacman::p_load("tidyverse","drat","maps","tmap","sf","viridis","sp","hurricaneexposuredata",
+               "hurricaneexposure","tmaptools","revealjs")
+addRepo("geanders")
+data("hurr_tracks") 
+data("rain")
+
+# Pulling map data
+ob <- st_as_sf(map('county',plot=FALSE,fill=TRUE))
+colnames(county.fips)[2] = 'ID'
+ob <- merge(ob, county.fips, by="ID")
+
+# Filtering target hurr_tracks data
+dt_o <- hurr_tracks %>% filter(storm_id == "One-2009")
+dt_e <- hurr_tracks %>% filter(storm_id == "Earl-2010")
+dt_i <- hurr_tracks %>% filter(storm_id == "Irene-2011")
+
+# Filtering target rain data
+ra_o <- rain %>% filter(storm_id == "One-2009") %>% group_by(fips) %>%
+  summarise('storm_id' = storm_id[1], 'precip' = sum(precip))
+ra_e <- rain %>% filter(storm_id == "Earl-2010") %>% group_by(fips) %>%
+  summarise('storm_id' = storm_id[1], 'precip' = sum(precip))
+ra_i <- rain %>% filter(storm_id == "Irene-2011") %>% group_by(fips) %>%
+  summarise('storm_id'=storm_id[1],'precip'=sum(precip))
+```
+
+
+## Using Coordinates for Hurricane Curve
+
+We combined the data to produce a curve for the hurricane tracks of the three hurricanes using the coordinate data.
+
+```{r, echo = FALSE}
+# Changing fips to numerics
+ra_o$fips <- as.numeric(ra_o$fips)
+ra_e$fips <- as.numeric(ra_e$fips)
+ra_i$fips <- as.numeric(ra_i$fips)
+
+# Merging data by fips variable
+ra_o <- merge(ob, ra_o, by="fips")
+ra_e <- merge(ob, ra_e, by="fips")
+ra_i <- merge(ob, ra_i, by="fips")
+
+# Pulling the coordinates for each hurricane path
+One <- cbind(dt_o$longitude,dt_o$latitude) %>%
+  Line() %>% Lines(ID = 'One-2009') %>%
+  list() %>% SpatialLines()
+Earl <- cbind(dt_e$longitude,dt_e$latitude)%>%
+  Line()%>%Lines(ID='Earl-2010')%>%
+  list()%>%SpatialLines()
+Irene <- cbind(dt_i$longitude, dt_i$latitude) %>%
+  Line() %>% Lines(ID = 'Irene-2011') %>%
+  list() %>% SpatialLines()
+```
+
+
+## Plotting the Maps
+
+We used the tmap method because we were able to tailor the maps exactly how we wanted it to look.
+
+```{r, echo = FALSE}
+# Organize map data
+ra_o <- rain %>% filter(storm_id == "One-2009") %>% group_by(fips) %>%
+  summarise(storm_id=storm_id[1],precip=sum(precip))
+ra.new.o <- as.data.frame(ra_o)
+
+ra.new.o$fips <- as.numeric(ra.new.o$fips)
+ra_e <- rain %>% filter(storm_id == "Earl-2010") %>% group_by(fips) %>%
+  summarise(storm_id=storm_id[1],precip=sum(precip))
+ra.new.e <- as.data.frame(ra_e)
+ra.new.e$fips <- as.numeric(ra.new.e$fips)
+
+ra_i <- rain %>% filter(storm_id == "Irene-2011") %>% group_by(fips) %>%
+  summarise(storm_id=storm_id[1],precip=sum(precip))
+ra.new.i <- as.data.frame(ra_i)
+ra.new.i$fips <- as.numeric(ra.new.i$fips)
+
+# Merging data by fips variable
+ra.new.o <- merge(ob, ra.new.o, by="fips")
+ra.new.e <- merge(ob, ra.new.e, by="fips")
+ra.new.i <- merge(ob, ra.new.i, by="fips")
+```
+
+```{r}
+# Plotting all three hurricane tracks and amount of rainfall
+#tmap for Hurricane One
+t_F_o = tm_shape(ra.new.o)+
+  tm_polygons(col='precip',title="Rainfall (mm)")+
+  tm_legend(position=c("right","bottom"))+
+  tm_shape(One)+
+  tm_lines(col='red')+
+  tm_layout(main.title='One-2009',main.title.position = "center") 
+
+
+#tmap for Hurricane Earl
+t_F_e = tm_shape(ra.new.e)+
+  tm_polygons(col='precip',title="Rainfall (mm)")+
+  tm_legend(position=c("right","bottom"))+
+  tm_shape(Earl)+
+  tm_lines(col='red')+
+  tm_layout(main.title='Earl-2010',main.title.position = "center")
+
+
+#tmap for Hurricane Irene
+t_F_i = tm_shape(ra.new.i)+
+  tm_polygons(col='precip',title="Rainfall (mm)")+
+  tm_legend(position=c("right","bottom"))+
+  tm_shape(Irene)+
+  tm_lines(col='red')+
+  tm_layout(main.title='Irene-2011',main.title.position = "center") 
+```
+
+
+## Hurricane One Map
+
+```{r, echo = FALSE}
+t_F_o
+```
+
+
+## Hurricane Earl Map
+
+```{r, echo = FALSE}
+t_F_e
+```
+
+
+## Hurricane Irene Map
+
+```{r, echo = FALSE}
+t_F_i
+```
+
+
+## Problems
+
+**Problem:** FEMA data was provided to try to match hurricanes with the 'hurricaneexposuredata' package but there were many storms that were not in one dataset that were in another.
+
+**Solution:** We disregarded the FEMA data and found hurricanes that fit our description of being in three consecutive years.
+
+
+## Conclusion
+
+Hurricane One
+
+- Medium precipitation level
+- Low precipication levels over a wide space
+
+Hurricane Earl
+
+- Lower precipitation levels
+- Similar track as Hurricane One
+
+Hurricane Irene
+
+- Higher precipitation levels
+- Direct contact with land
+
+
+## Thank you!
+
+Questions?
